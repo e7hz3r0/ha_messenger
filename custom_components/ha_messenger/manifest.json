@@ -1,0 +1,12 @@
+{
+  "domain": "ha_messenger",
+  "name": "HA Messenger",
+  "version": "0.1.0",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "config_flow": true,
+  "documentation": "https://github.com/e7hz3r0/ha_messenger",
+  "issue_tracker": "https://github.com/e7hz3r0/ha_messenger/issues",
+  "codeowners": ["@e7hz3r0"],
+  "requirements": ["Pillow>=10.0.0"]
+}

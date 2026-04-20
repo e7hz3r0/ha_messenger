@@ -1,0 +1,11 @@
+# Test-only dependencies. Install with:
+#     pip install -r requirements_test.txt
+#
+# pytest-homeassistant-custom-component pins the matching homeassistant
+# version transitively, so we don't pin HA directly here.
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-homeassistant-custom-component>=0.13.180
+Pillow>=10.0.0
+# Home Assistant's camera component imports turbojpeg at platform load time.
+PyTurboJPEG>=1.7.0

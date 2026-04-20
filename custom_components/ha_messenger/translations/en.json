@@ -1,0 +1,69 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HA Messenger",
+        "description": "Create a virtual camera + motion sensor pair you can send messages to.",
+        "data": {
+          "name": "Name",
+          "width": "Frame width (px)",
+          "height": "Frame height (px)",
+          "font_size": "Font size (px)",
+          "background_color": "Background color (#RRGGBB)",
+          "text_color": "Text color (#RRGGBB)",
+          "default_duration": "Default motion duration (seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_color": "Color must be a #RRGGBB hex value.",
+      "invalid_dimension": "Width and height must be between 64 and 3840.",
+      "invalid_font_size": "Font size must be between 8 and 512.",
+      "invalid_duration": "Duration must be between 1 and 300 seconds."
+    },
+    "abort": {
+      "already_configured": "An HA Messenger channel with this name is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HA Messenger options",
+        "data": {
+          "width": "Frame width (px)",
+          "height": "Frame height (px)",
+          "font_size": "Font size (px)",
+          "background_color": "Background color (#RRGGBB)",
+          "text_color": "Text color (#RRGGBB)",
+          "default_duration": "Default motion duration (seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_color": "Color must be a #RRGGBB hex value.",
+      "invalid_dimension": "Width and height must be between 64 and 3840.",
+      "invalid_font_size": "Font size must be between 8 and 512.",
+      "invalid_duration": "Duration must be between 1 and 300 seconds."
+    }
+  },
+  "services": {
+    "send_message": {
+      "name": "Send message",
+      "description": "Render a message to the virtual camera and trigger motion.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "Text to render on the camera frame."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Seconds the motion sensor stays on (defaults to channel setting)."
+        },
+        "notify_targets": {
+          "name": "Notify targets",
+          "description": "Optional list of notify service names (e.g. mobile_app_ethan) to push to, with the rendered image attached."
+        }
+      }
+    }
+  }
+}

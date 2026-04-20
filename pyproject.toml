@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# pytest-homeassistant-custom-component registers MockConfigEntry etc.;
+# loading the plugin early gives tests access to the `hass` fixture.
+norecursedirs = ["custom_components/*/fonts", ".git"]
+filterwarnings = [
+    # Surface real problems; silence noisy third-party deprecations.
+    "error::DeprecationWarning:custom_components.ha_messenger.*",
+    "ignore::DeprecationWarning:aiohttp.*",
+]
