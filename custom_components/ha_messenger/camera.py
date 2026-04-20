@@ -68,6 +68,7 @@ class HaMessengerCamera(Camera):
     async def async_added_to_hass(self) -> None:
         """Register entity_id ↔ entry_id lookup and subscribe to updates."""
         self.hass.data[DOMAIN][DATA_CAMERA_TO_ENTRY][self.entity_id] = self._entry.entry_id
+        self._runtime.camera_entity_id = self.entity_id
 
         signal = SIGNAL_MESSAGE_UPDATED.format(entry_id=self._entry.entry_id)
         self.async_on_remove(
@@ -76,6 +77,7 @@ class HaMessengerCamera(Camera):
 
     async def async_will_remove_from_hass(self) -> None:
         self.hass.data[DOMAIN][DATA_CAMERA_TO_ENTRY].pop(self.entity_id, None)
+        self._runtime.camera_entity_id = None
 
     @callback
     def _handle_message_updated(self) -> None:

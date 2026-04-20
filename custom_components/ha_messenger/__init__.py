@@ -41,6 +41,8 @@ from .const import (
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     DOMAIN,
+    MAX_DURATION,
+    MIN_DURATION,
     SERVICE_SEND_MESSAGE,
     SIGNAL_MESSAGE_UPDATED,
     SIGNAL_MOTION_TRIGGER,
@@ -54,7 +56,9 @@ PLATFORMS: list[Platform] = [Platform.CAMERA, Platform.BINARY_SENSOR]
 SEND_MESSAGE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_MESSAGE): cv.string,
-        vol.Optional(ATTR_DURATION): vol.All(vol.Coerce(int), vol.Range(min=1, max=300)),
+        vol.Optional(ATTR_DURATION): vol.All(
+            vol.Coerce(int), vol.Range(min=MIN_DURATION, max=MAX_DURATION)
+        ),
         vol.Optional(ATTR_NOTIFY_TARGETS): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("entity_id"): cv.entity_ids,
         vol.Optional("device_id"): vol.All(cv.ensure_list, [cv.string]),
@@ -98,6 +102,7 @@ class ChannelRuntime:
     config: ChannelConfig
     current_message: str = ""
     last_sent_at: datetime | None = None
+    camera_entity_id: str | None = None
     _cache: dict[tuple[str, int, int], bytes] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
@@ -163,23 +168,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not unloaded:
         return False
 
-    domain_data = hass.data.get(DOMAIN, {})
-    domain_data.get(DATA_RUNTIMES, {}).pop(entry.entry_id, None)
+    domain_data = hass.data[DOMAIN]
+    del domain_data[DATA_RUNTIMES][entry.entry_id]
 
-    if not domain_data.get(DATA_RUNTIMES):
+    if not domain_data[DATA_RUNTIMES]:
         hass.services.async_remove(DOMAIN, SERVICE_SEND_MESSAGE)
-        hass.data.pop(DOMAIN, None)
+        hass.data.pop(DOMAIN)
 
     return True
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """React to options-flow changes by rebuilding the channel config."""
-    runtime: ChannelRuntime | None = (
-        hass.data.get(DOMAIN, {}).get(DATA_RUNTIMES, {}).get(entry.entry_id)
-    )
-    if runtime is None:
-        return
+    runtime: ChannelRuntime = hass.data[DOMAIN][DATA_RUNTIMES][entry.entry_id]
     runtime.config = ChannelConfig.from_entry(entry)
     runtime.invalidate_render_cache()
     async_dispatcher_send(hass, SIGNAL_MESSAGE_UPDATED.format(entry_id=entry.entry_id))
@@ -190,6 +191,9 @@ def _resolve_entries(hass: HomeAssistant, call: ServiceCall) -> list[str]:
     """Map the call's target (entity_id/device_id/area_id) to our entry_ids.
 
     Falls back to fanning out to every channel if no target is specified.
+    Raises ``ServiceValidationError`` when any given entity_id is not a
+    registered ha_messenger camera — silently ignoring typos would hide real
+    misconfiguration.
     """
     camera_to_entry: dict[str, str] = hass.data[DOMAIN][DATA_CAMERA_TO_ENTRY]
     runtimes: dict[str, ChannelRuntime] = hass.data[DOMAIN][DATA_RUNTIMES]
@@ -198,10 +202,14 @@ def _resolve_entries(hass: HomeAssistant, call: ServiceCall) -> list[str]:
     if not entity_ids and not call.data.get("device_id") and not call.data.get("area_id"):
         return list(runtimes.keys())
 
-    resolved = {camera_to_entry[e] for e in entity_ids if e in camera_to_entry}
+    unknown = [e for e in entity_ids if e not in camera_to_entry]
+    if unknown:
+        raise ServiceValidationError(
+            f"Unknown ha_messenger camera target(s): {', '.join(unknown)}"
+        )
     # device_id / area_id resolution left to future work; HA's target selector
     # already restricts the UI to camera entities from this integration.
-    return list(resolved)
+    return list({camera_to_entry[e] for e in entity_ids})
 
 
 def _make_send_message_handler(hass: HomeAssistant):
@@ -224,11 +232,7 @@ async def _async_send_message(
     """Fan a send_message call out to each resolved channel."""
     message = call.data[ATTR_MESSAGE]
     notify_targets: list[str] = call.data.get(ATTR_NOTIFY_TARGETS) or []
-
-    domain_data = hass.data[DOMAIN]
-    runtimes: dict[str, ChannelRuntime] = domain_data[DATA_RUNTIMES]
-    camera_to_entry: dict[str, str] = domain_data[DATA_CAMERA_TO_ENTRY]
-    entry_to_camera = {eid: cam_id for cam_id, eid in camera_to_entry.items()}
+    runtimes: dict[str, ChannelRuntime] = hass.data[DOMAIN][DATA_RUNTIMES]
 
     for entry_id in entry_ids:
         runtime = runtimes[entry_id]
@@ -247,14 +251,22 @@ async def _async_send_message(
             duration,
         )
 
-        camera_entity_id = entry_to_camera.get(entry_id)
-        if camera_entity_id is None:
+        if not notify_targets:
+            continue
+
+        if runtime.camera_entity_id is None:
+            # Camera platform setup hasn't completed — motion already fired,
+            # but we can't attach an image yet. Surface it loudly.
+            _LOGGER.warning(
+                "Skipping notify fanout for channel %s: camera entity not registered yet",
+                entry_id,
+            )
             continue
 
         for name in notify_targets:
             await hass.services.async_call(
                 "notify",
                 name,
-                {"message": message, "data": {"image": camera_entity_id}},
+                {"message": message, "data": {"image": runtime.camera_entity_id}},
                 blocking=True,
             )

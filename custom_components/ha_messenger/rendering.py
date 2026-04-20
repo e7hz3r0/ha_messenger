@@ -29,7 +29,7 @@ class Layout:
     top_y: int
 
 
-def _parse_hex_color(value: str) -> tuple[int, int, int]:
+def parse_hex_color(value: str) -> tuple[int, int, int]:
     """Parse ``#RRGGBB`` into an ``(r, g, b)`` tuple. Raises ValueError if malformed."""
     v = value.strip().lstrip("#")
     if len(v) != 6:
@@ -40,6 +40,30 @@ def _parse_hex_color(value: str) -> tuple[int, int, int]:
 def _load_font(font_size: int, font_path: Path | str | None) -> ImageFont.FreeTypeFont:
     path = Path(font_path) if font_path else DEFAULT_FONT_PATH
     return ImageFont.truetype(str(path), size=font_size)
+
+
+def _break_long_word(
+    word: str,
+    draw: ImageDraw.ImageDraw,
+    font: ImageFont.FreeTypeFont,
+    max_width: float,
+) -> tuple[list[str], str]:
+    """Break a word that overflows ``max_width`` into complete chunks + trailing partial.
+
+    Returns ``(finished_chunks, trailing)`` where ``finished_chunks`` are each
+    guaranteed to fit within ``max_width`` and ``trailing`` is the remainder to
+    continue building on the next line.
+    """
+    finished: list[str] = []
+    chunk = ""
+    for ch in word:
+        cand = chunk + ch
+        if not chunk or draw.textlength(cand, font=font) <= max_width + 1e-6:
+            chunk = cand
+        else:
+            finished.append(chunk)
+            chunk = ch
+    return finished, chunk
 
 
 def layout_text(
@@ -75,15 +99,9 @@ def layout_text(
             if draw.textlength(word, font=font) <= max_width + 1e-6:
                 current = word
                 continue
-            chunk = ""
-            for ch in word:
-                cand = chunk + ch
-                if not chunk or draw.textlength(cand, font=font) <= max_width + 1e-6:
-                    chunk = cand
-                else:
-                    lines.append(chunk)
-                    chunk = ch
-            current = chunk
+            finished, trailing = _break_long_word(word, draw, font, max_width)
+            lines.extend(finished)
+            current = trailing
         if current:
             lines.append(current)
 
@@ -112,8 +130,8 @@ def render_message(
     font_path: Path | str | None = None,
 ) -> bytes:
     """Render ``text`` to a JPEG byte string sized ``width x height``."""
-    bg = _parse_hex_color(background_color)
-    fg = _parse_hex_color(text_color)
+    bg = parse_hex_color(background_color)
+    fg = parse_hex_color(text_color)
 
     img = Image.new("RGB", (width, height), bg)
     draw = ImageDraw.Draw(img)

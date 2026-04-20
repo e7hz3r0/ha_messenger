@@ -28,8 +28,14 @@ from .const import (
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     DOMAIN,
+    MAX_DIMENSION,
+    MAX_DURATION,
+    MAX_FONT_SIZE,
+    MIN_DIMENSION,
+    MIN_DURATION,
+    MIN_FONT_SIZE,
 )
-from .rendering import _parse_hex_color
+from .rendering import parse_hex_color
 
 
 def _channel_schema(defaults: dict[str, Any] | None = None, *, include_name: bool) -> vol.Schema:
@@ -39,24 +45,24 @@ def _channel_schema(defaults: dict[str, Any] | None = None, *, include_name: boo
         schema[vol.Required(CONF_NAME, default=defaults.get(CONF_NAME, "Messenger"))] = str
     schema[vol.Required(CONF_WIDTH, default=defaults.get(CONF_WIDTH, DEFAULT_WIDTH))] = (
         selector.NumberSelector(
-            selector.NumberSelectorConfig(min=64, max=3840, step=1, mode=selector.NumberSelectorMode.BOX)
+            selector.NumberSelectorConfig(min=MIN_DIMENSION, max=MAX_DIMENSION, step=1, mode=selector.NumberSelectorMode.BOX)
         )
     )
     schema[vol.Required(CONF_HEIGHT, default=defaults.get(CONF_HEIGHT, DEFAULT_HEIGHT))] = (
         selector.NumberSelector(
-            selector.NumberSelectorConfig(min=64, max=3840, step=1, mode=selector.NumberSelectorMode.BOX)
+            selector.NumberSelectorConfig(min=MIN_DIMENSION, max=MAX_DIMENSION, step=1, mode=selector.NumberSelectorMode.BOX)
         )
     )
     schema[vol.Required(CONF_FONT_SIZE, default=defaults.get(CONF_FONT_SIZE, DEFAULT_FONT_SIZE))] = (
         selector.NumberSelector(
-            selector.NumberSelectorConfig(min=8, max=512, step=1, mode=selector.NumberSelectorMode.BOX)
+            selector.NumberSelectorConfig(min=MIN_FONT_SIZE, max=MAX_FONT_SIZE, step=1, mode=selector.NumberSelectorMode.BOX)
         )
     )
     schema[vol.Required(CONF_BG, default=defaults.get(CONF_BG, DEFAULT_BG))] = str
     schema[vol.Required(CONF_FG, default=defaults.get(CONF_FG, DEFAULT_FG))] = str
     schema[vol.Required(CONF_DEFAULT_DURATION, default=defaults.get(CONF_DEFAULT_DURATION, DEFAULT_DURATION))] = (
         selector.NumberSelector(
-            selector.NumberSelectorConfig(min=1, max=300, step=1, unit_of_measurement="s", mode=selector.NumberSelectorMode.BOX)
+            selector.NumberSelectorConfig(min=MIN_DURATION, max=MAX_DURATION, step=1, unit_of_measurement="s", mode=selector.NumberSelectorMode.BOX)
         )
     )
     return vol.Schema(schema)
@@ -68,23 +74,23 @@ def validate_channel_input(user_input: dict[str, Any]) -> dict[str, str]:
 
     for key in (CONF_BG, CONF_FG):
         try:
-            _parse_hex_color(str(user_input[key]))
-        except (KeyError, ValueError):
+            parse_hex_color(str(user_input[key]))
+        except ValueError:
             errors[key] = "invalid_color"
 
     w = int(user_input[CONF_WIDTH])
     h = int(user_input[CONF_HEIGHT])
-    if not 64 <= w <= 3840:
+    if not MIN_DIMENSION <= w <= MAX_DIMENSION:
         errors[CONF_WIDTH] = "invalid_dimension"
-    if not 64 <= h <= 3840:
+    if not MIN_DIMENSION <= h <= MAX_DIMENSION:
         errors[CONF_HEIGHT] = "invalid_dimension"
 
     fs = int(user_input[CONF_FONT_SIZE])
-    if not 8 <= fs <= 512:
+    if not MIN_FONT_SIZE <= fs <= MAX_FONT_SIZE:
         errors[CONF_FONT_SIZE] = "invalid_font_size"
 
     d = int(user_input[CONF_DEFAULT_DURATION])
-    if not 1 <= d <= 300:
+    if not MIN_DURATION <= d <= MAX_DURATION:
         errors[CONF_DEFAULT_DURATION] = "invalid_duration"
 
     return errors

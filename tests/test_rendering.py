@@ -16,12 +16,12 @@ from PIL import Image
 from custom_components.ha_messenger.rendering import (
     HORIZONTAL_PADDING_FRACTION,
     Layout,
-    _parse_hex_color,
+    parse_hex_color,
     layout_text,
     render_message,
 )
 
-# --- _parse_hex_color ----------------------------------------------------- #
+# --- parse_hex_color ----------------------------------------------------- #
 
 
 @pytest.mark.parametrize(
@@ -35,13 +35,13 @@ from custom_components.ha_messenger.rendering import (
     ],
 )
 def test_parse_hex_color_accepts_valid(value: str, expected: tuple[int, int, int]) -> None:
-    assert _parse_hex_color(value) == expected
+    assert parse_hex_color(value) == expected
 
 
 @pytest.mark.parametrize("value", ["#FFF", "red", "#GGGGGG", "", "#1234567"])
 def test_parse_hex_color_rejects_invalid(value: str) -> None:
     with pytest.raises(ValueError):
-        _parse_hex_color(value)
+        parse_hex_color(value)
 
 
 # --- render_message ------------------------------------------------------- #

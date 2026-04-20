@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "ha_messenger"
-PLATFORMS: Final = ["camera", "binary_sensor"]
 
 CONF_NAME: Final = "name"
 CONF_WIDTH: Final = "width"
@@ -20,6 +19,13 @@ DEFAULT_FONT_SIZE: Final = 96
 DEFAULT_BG: Final = "#000000"
 DEFAULT_FG: Final = "#FFFFFF"
 DEFAULT_DURATION: Final = 10
+
+MIN_DIMENSION: Final = 64
+MAX_DIMENSION: Final = 3840
+MIN_FONT_SIZE: Final = 8
+MAX_FONT_SIZE: Final = 512
+MIN_DURATION: Final = 1
+MAX_DURATION: Final = 300
 
 SERVICE_SEND_MESSAGE: Final = "send_message"
 
