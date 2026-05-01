@@ -202,13 +202,17 @@ def _resolve_entries(hass: HomeAssistant, call: ServiceCall) -> list[str]:
     if not entity_ids and not call.data.get("device_id") and not call.data.get("area_id"):
         return list(runtimes.keys())
 
+    if call.data.get("device_id") or call.data.get("area_id"):
+        raise ServiceValidationError(
+            "Targeting by device or area is not yet supported. "
+            "Target a specific ha_messenger camera entity directly."
+        )
+
     unknown = [e for e in entity_ids if e not in camera_to_entry]
     if unknown:
         raise ServiceValidationError(
             f"Unknown ha_messenger camera target(s): {', '.join(unknown)}"
         )
-    # device_id / area_id resolution left to future work; HA's target selector
-    # already restricts the UI to camera entities from this integration.
     return list({camera_to_entry[e] for e in entity_ids})
 
 

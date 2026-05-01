@@ -9,10 +9,8 @@ rendered image of the current message, plus a paired motion `binary_sensor`.
 Sending a message updates the image and briefly fires the motion sensor. Your
 existing HomeKit bridge is what surfaces the alert on Apple TV.
 
-> **Status — v0.1 in development.** The skeleton is in place; three core
-> functions (`layout_text`, `_async_send_message`, `validate_channel_input`)
-> still raise `NotImplementedError`. See [CLAUDE.md](CLAUDE.md) for the
-> contribution map.
+> **Status — v0.1.** All core functions implemented and tested. See
+> [CLAUDE.md](CLAUDE.md) for architecture notes.
 
 ## How it works
 

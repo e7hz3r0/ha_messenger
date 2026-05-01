@@ -38,21 +38,20 @@ together by a `ChannelRuntime` dataclass in
 | `fonts/default.ttf` | Bundled DejaVu Sans 2.37.3 — licensed; do not remove the adjacent `LICENSE-DejaVu.txt` | — |
 | `manifest.json`, `hacs.json` | Integration + HACS metadata. Keep `version` bumps in sync with git tags. | — |
 
-## Currently-open contribution slots
+## Implemented core paths
 
-Each is a single small function whose scaffold exists and whose docstring
-already spells out the trade-offs. Keep them small (<15 lines each).
+These are good entry points for understanding or extending the integration:
 
 1. **`rendering.py::layout_text`** — word-wrap + vertical centering. Returns a
-   `Layout` (lines, line_height, top_y). Use `draw.textlength(word, font=font)`
-   for pixel-accurate measurements.
-2. **`__init__.py::_async_send_message`** — per-channel fan-out: update
-   runtime, dispatch `SIGNAL_MESSAGE_UPDATED` + `SIGNAL_MOTION_TRIGGER`, then
-   fan out to `notify.*` targets with the camera as image attachment.
+   `Layout` (lines, line_height, top_y). Uses `draw.textlength` for
+   pixel-accurate measurements; `_break_long_word` handles words wider than
+   the canvas.
+2. **`__init__.py::_async_send_message`** — per-channel fan-out: updates
+   runtime state, dispatches `SIGNAL_MESSAGE_UPDATED` + `SIGNAL_MOTION_TRIGGER`,
+   then calls `notify.*` targets with the camera entity attached as an image.
 3. **`config_flow.py::validate_channel_input`** — semantic validation of form
-   input. Must return `{field_name: error_key}` with keys that already exist
-   in `translations/en.json` (`invalid_color`, `invalid_dimension`,
-   `invalid_font_size`, `invalid_duration`).
+   input. Returns `{field_name: error_key}` using keys defined in
+   `translations/en.json`.
 
 ## Conventions (load-bearing)
 

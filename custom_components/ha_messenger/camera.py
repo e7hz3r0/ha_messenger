@@ -49,9 +49,6 @@ class HaMessengerCamera(Camera):
         self._runtime = runtime
         self._attr_unique_id = f"{entry.entry_id}_camera"
         self._attr_device_info = runtime.device_info
-        # Frame interval controls how often HA re-polls async_camera_image when
-        # serving an MJPEG stream. 0.5s is the default; we keep it high-ish
-        # because the image only changes on send_message.
         self.content_type = "image/jpeg"
 
     @property

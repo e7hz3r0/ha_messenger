@@ -45,8 +45,6 @@ def test_parse_hex_color_rejects_invalid(value: str) -> None:
 
 
 # --- render_message ------------------------------------------------------- #
-# These exercise the full pipeline, so they depend on ``layout_text`` being
-# implemented. Expected to fail until the user's word-wrap loop lands.
 
 
 def _decode(data: bytes) -> Image.Image:

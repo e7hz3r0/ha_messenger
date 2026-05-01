@@ -16,7 +16,7 @@
       }
     },
     "error": {
-      "invalid_color": "Color must be a #RRGGBB hex value.",
+      "invalid_color": "Color must be a 6-character hex value (e.g. #000000).",
       "invalid_dimension": "Width and height must be between 64 and 3840.",
       "invalid_font_size": "Font size must be between 8 and 512.",
       "invalid_duration": "Duration must be between 1 and 300 seconds."
@@ -40,7 +40,7 @@
       }
     },
     "error": {
-      "invalid_color": "Color must be a #RRGGBB hex value.",
+      "invalid_color": "Color must be a 6-character hex value (e.g. #000000).",
       "invalid_dimension": "Width and height must be between 64 and 3840.",
       "invalid_font_size": "Font size must be between 8 and 512.",
       "invalid_duration": "Duration must be between 1 and 300 seconds."

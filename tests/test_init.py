@@ -1,9 +1,4 @@
-"""End-to-end tests for setup/unload lifecycle and the send_message service.
-
-The service tests rely on the user's ``_async_send_message`` implementation;
-they fail until the TODO in ``__init__.py`` is filled in — which is the
-intent: the test suite is the concrete contract.
-"""
+"""End-to-end tests for setup/unload lifecycle and the send_message service."""
 from __future__ import annotations
 
 import pytest
