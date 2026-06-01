@@ -22,3 +22,5 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+        env:
+          REPOSITORY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
