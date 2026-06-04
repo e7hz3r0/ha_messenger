@@ -1,0 +1,32 @@
+send_message:
+  name: Send message
+  description: Render a message to the virtual camera and trigger motion.
+  target:
+    entity:
+      domain: camera
+      integration: ha_messenger
+  fields:
+    message:
+      name: Message
+      description: Text to render on the camera frame.
+      required: true
+      example: "Dinner is ready"
+      selector:
+        text:
+          multiline: true
+    duration:
+      name: Duration
+      description: Seconds the motion sensor stays on.
+      example: 10
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: seconds
+          mode: box
+    notify_targets:
+      name: Notify targets
+      description: List of notify.<name> services to push to with the rendered image attached.
+      example: ["mobile_app_ethan_iphone"]
+      selector:
+        object: {}
