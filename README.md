@@ -29,6 +29,14 @@ Companion app  ──► service: ha_messenger.send_message(message, duration, n
 
 ## Install via HACS
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=e7hz3r0&repository=ha_messenger&category=integration)
+
+Click the badge to open this repo in HACS on your own Home Assistant instance,
+then install **HA Messenger** and restart Home Assistant. After restart:
+Settings → Devices & Services → **Add Integration** → **HA Messenger**.
+
+Or add it manually:
+
 1. HACS → Integrations → three-dot menu → **Custom repositories**.
 2. Add `https://github.com/e7hz3r0/ha_messenger` with category **Integration**.
 3. Install **HA Messenger** and restart Home Assistant.
