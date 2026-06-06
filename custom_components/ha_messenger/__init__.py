@@ -164,19 +164,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not domain_data.get("panel_registered"):
         from pathlib import Path
 
-        from homeassistant.components import frontend
+        from homeassistant.components import panel_custom
+        from homeassistant.components.http import StaticPathConfig
 
         www_dir = Path(__file__).parent / "www"
-        hass.http.register_static_path(
-            "/ha_messenger_panel", str(www_dir), cache_headers=False
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig("/ha_messenger_panel", str(www_dir), False)]
         )
-        frontend.async_register_panel(
+        await panel_custom.async_register_panel(
             hass,
-            component_name="ha-messenger-panel",
+            frontend_url_path="ha-messenger",
+            webcomponent_name="ha-messenger-panel",
             sidebar_title="HA Messenger",
             sidebar_icon="mdi:message-image",
-            frontend_url_path="ha-messenger",
-            js_url="/ha_messenger_panel/ha-messenger-panel.js",
+            module_url="/ha_messenger_panel/ha-messenger-panel.js",
             require_admin=False,
         )
         domain_data["panel_registered"] = True
@@ -197,7 +198,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, SERVICE_SEND_MESSAGE)
         from homeassistant.components import frontend
 
-        frontend.async_remove_panel("ha-messenger")
+        frontend.async_remove_panel(hass, "ha-messenger")
         domain_data.pop("panel_registered", None)
         hass.data.pop(DOMAIN)
 
