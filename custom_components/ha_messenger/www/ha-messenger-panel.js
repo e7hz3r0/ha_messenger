@@ -302,15 +302,14 @@ class HaMessengerPanel extends LitElement {
     this._sending = true;
     this._error = null;
     try {
-      const notifyTargets = [...this._selectedDevices];
-      for (const entityId of this._selectedChannels) {
-        await this._hass.callService(
-          "ha_messenger",
-          "send_message",
-          { message: this._message, notify_targets: notifyTargets },
-          { entity_id: entityId }
-        );
-      }
+      // Single service call with all selected channels as targets so the backend fans
+      // out to each channel and notify_targets fires exactly once (not once per channel).
+      await this._hass.callService(
+        "ha_messenger",
+        "send_message",
+        { message: this._message, notify_targets: [...this._selectedDevices] },
+        { entity_id: [...this._selectedChannels] }
+      );
       // Clear message on success.
       this._message = "";
       this._previewUrl = null;

@@ -161,16 +161,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SEND_MESSAGE_SCHEMA,
         )
 
-    if not domain_data.get("panel_registered"):
+    # Static path registration is permanent for the HA session (aiohttp routes can't be
+    # removed), so guard it at the hass.data top level — not inside domain_data, which
+    # gets wiped on full unload and would cause a duplicate-route error on re-add.
+    if not hass.data.get("ha_messenger_static_path_registered"):
         from pathlib import Path
 
-        from homeassistant.components import panel_custom
         from homeassistant.components.http import StaticPathConfig
 
         www_dir = Path(__file__).parent / "www"
         await hass.http.async_register_static_paths(
             [StaticPathConfig("/ha_messenger_panel", str(www_dir), False)]
         )
+        hass.data["ha_messenger_static_path_registered"] = True
+
+    if not domain_data.get("panel_registered"):
+        from homeassistant.components import panel_custom
+
         await panel_custom.async_register_panel(
             hass,
             frontend_url_path="ha-messenger",
@@ -269,13 +276,14 @@ async def _async_send_message(
     for entry_id in entry_ids:
         runtime = runtimes[entry_id]
         runtime.current_message = message
-        runtime.last_sent_at = dt_util.utcnow()
         runtime.invalidate_render_cache()
 
         async_dispatcher_send(hass, SIGNAL_MESSAGE_UPDATED.format(entry_id=entry_id))
 
         if preview_only:
             continue
+
+        runtime.last_sent_at = dt_util.utcnow()
 
         duration = call.data.get(ATTR_DURATION)
         if duration is None:
@@ -286,22 +294,23 @@ async def _async_send_message(
             duration,
         )
 
-        if not notify_targets:
-            continue
-
-        if runtime.camera_entity_id is None:
-            # Camera platform setup hasn't completed — motion already fired,
-            # but we can't attach an image yet. Surface it loudly.
+    # Notify targets are sent once regardless of how many channels were targeted —
+    # sending per-channel would duplicate notifications on every device.
+    # Use the first channel that has a registered camera entity_id as the image source.
+    if not preview_only and notify_targets:
+        notify_camera = next(
+            (runtimes[e].camera_entity_id for e in entry_ids if runtimes[e].camera_entity_id),
+            None,
+        )
+        if notify_camera is None:
             _LOGGER.warning(
-                "Skipping notify fanout for channel %s: camera entity not registered yet",
-                entry_id,
+                "Skipping notify fanout: no camera entity registered yet for any targeted channel"
             )
-            continue
-
-        for name in notify_targets:
-            await hass.services.async_call(
-                "notify",
-                name,
-                {"message": message, "data": {"image": runtime.camera_entity_id}},
-                blocking=True,
-            )
+        else:
+            for name in notify_targets:
+                await hass.services.async_call(
+                    "notify",
+                    name,
+                    {"message": message, "data": {"image": notify_camera}},
+                    blocking=True,
+                )
