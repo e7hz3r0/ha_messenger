@@ -32,6 +32,7 @@ SERVICE_SEND_MESSAGE: Final = "send_message"
 ATTR_MESSAGE: Final = "message"
 ATTR_DURATION: Final = "duration"
 ATTR_NOTIFY_TARGETS: Final = "notify_targets"
+ATTR_PREVIEW_ONLY: Final = "preview_only"
 
 SIGNAL_MESSAGE_UPDATED: Final = "ha_messenger_message_updated_{entry_id}"
 SIGNAL_MOTION_TRIGGER: Final = "ha_messenger_motion_trigger_{entry_id}"

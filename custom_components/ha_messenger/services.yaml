@@ -30,3 +30,9 @@ send_message:
       example: ["mobile_app_ethan_iphone"]
       selector:
         object: {}
+    preview_only:
+      name: Preview only
+      description: Update the camera image without triggering motion detection or push notifications.
+      required: false
+      selector:
+        boolean:

@@ -25,6 +25,7 @@ from .const import (
     ATTR_DURATION,
     ATTR_MESSAGE,
     ATTR_NOTIFY_TARGETS,
+    ATTR_PREVIEW_ONLY,
     CONF_BG,
     CONF_DEFAULT_DURATION,
     CONF_FG,
@@ -60,6 +61,7 @@ SEND_MESSAGE_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=MIN_DURATION, max=MAX_DURATION)
         ),
         vol.Optional(ATTR_NOTIFY_TARGETS): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
         vol.Optional("entity_id"): cv.entity_ids,
         vol.Optional("device_id"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("area_id"): vol.All(cv.ensure_list, [cv.string]),
@@ -159,6 +161,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SEND_MESSAGE_SCHEMA,
         )
 
+    if not domain_data.get("panel_registered"):
+        from pathlib import Path
+
+        from homeassistant.components import frontend
+
+        www_dir = Path(__file__).parent / "www"
+        hass.http.register_static_path(
+            "/ha_messenger_panel", str(www_dir), cache_headers=False
+        )
+        frontend.async_register_panel(
+            hass,
+            component_name="ha-messenger-panel",
+            sidebar_title="HA Messenger",
+            sidebar_icon="mdi:message-image",
+            frontend_url_path="ha-messenger",
+            js_url="/ha_messenger_panel/ha-messenger-panel.js",
+            require_admin=False,
+        )
+        domain_data["panel_registered"] = True
+
     return True
 
 
@@ -173,6 +195,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not domain_data[DATA_RUNTIMES]:
         hass.services.async_remove(DOMAIN, SERVICE_SEND_MESSAGE)
+        from homeassistant.components import frontend
+
+        frontend.async_remove_panel("ha-messenger")
+        domain_data.pop("panel_registered", None)
         hass.data.pop(DOMAIN)
 
     return True
@@ -236,6 +262,7 @@ async def _async_send_message(
     """Fan a send_message call out to each resolved channel."""
     message = call.data[ATTR_MESSAGE]
     notify_targets: list[str] = call.data.get(ATTR_NOTIFY_TARGETS) or []
+    preview_only: bool = call.data.get(ATTR_PREVIEW_ONLY, False)
     runtimes: dict[str, ChannelRuntime] = hass.data[DOMAIN][DATA_RUNTIMES]
 
     for entry_id in entry_ids:
@@ -245,6 +272,9 @@ async def _async_send_message(
         runtime.invalidate_render_cache()
 
         async_dispatcher_send(hass, SIGNAL_MESSAGE_UPDATED.format(entry_id=entry_id))
+
+        if preview_only:
+            continue
 
         duration = call.data.get(ATTR_DURATION)
         if duration is None:
