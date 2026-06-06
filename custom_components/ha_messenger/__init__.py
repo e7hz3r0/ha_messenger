@@ -12,6 +12,10 @@ from datetime import datetime
 from typing import Any
 
 import voluptuous as vol
+from pathlib import Path
+
+from homeassistant.components import frontend, panel_custom
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
@@ -27,6 +31,8 @@ from .const import (
     ATTR_NOTIFY_TARGETS,
     ATTR_PREVIEW_ONLY,
     CONF_BG,
+    DATA_PANEL_REGISTERED,
+    DATA_STATIC_PATH_REGISTERED,
     CONF_DEFAULT_DURATION,
     CONF_FG,
     CONF_FONT_SIZE,
@@ -162,22 +168,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Static path registration is permanent for the HA session (aiohttp routes can't be
-    # removed), so guard it at the hass.data top level — not inside domain_data, which
-    # gets wiped on full unload and would cause a duplicate-route error on re-add.
-    if not hass.data.get("ha_messenger_static_path_registered"):
-        from pathlib import Path
-
-        from homeassistant.components.http import StaticPathConfig
-
+    # removed), so guard it at hass.data top level — not domain_data, which gets wiped
+    # on full unload and would cause a duplicate-route error on re-add.
+    if not hass.data.get(DATA_STATIC_PATH_REGISTERED):
         www_dir = Path(__file__).parent / "www"
         await hass.http.async_register_static_paths(
             [StaticPathConfig("/ha_messenger_panel", str(www_dir), False)]
         )
-        hass.data["ha_messenger_static_path_registered"] = True
+        hass.data[DATA_STATIC_PATH_REGISTERED] = True
 
-    if not domain_data.get("panel_registered"):
-        from homeassistant.components import panel_custom
-
+    # Panel registration is also stored at session level to eliminate the TOCTOU window
+    # when two entries set up concurrently — both would pass a domain_data check before
+    # either wrote the flag, causing async_register_panel to raise on the second call.
+    if not hass.data.get(DATA_PANEL_REGISTERED):
         await panel_custom.async_register_panel(
             hass,
             frontend_url_path="ha-messenger",
@@ -187,7 +190,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             module_url="/ha_messenger_panel/ha-messenger-panel.js",
             require_admin=False,
         )
-        domain_data["panel_registered"] = True
+        hass.data[DATA_PANEL_REGISTERED] = True
 
     return True
 
@@ -203,10 +206,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not domain_data[DATA_RUNTIMES]:
         hass.services.async_remove(DOMAIN, SERVICE_SEND_MESSAGE)
-        from homeassistant.components import frontend
-
         frontend.async_remove_panel(hass, "ha-messenger")
-        domain_data.pop("panel_registered", None)
+        hass.data.pop(DATA_PANEL_REGISTERED, None)
+        # DATA_STATIC_PATH_REGISTERED intentionally survives — aiohttp routes cannot be
+        # unregistered at runtime, so the guard must persist across entry add/remove cycles.
         hass.data.pop(DOMAIN)
 
     return True
@@ -269,7 +272,7 @@ async def _async_send_message(
 ) -> None:
     """Fan a send_message call out to each resolved channel."""
     message = call.data[ATTR_MESSAGE]
-    notify_targets: list[str] = call.data.get(ATTR_NOTIFY_TARGETS) or []
+    notify_targets: list[str] = list(dict.fromkeys(call.data.get(ATTR_NOTIFY_TARGETS) or []))
     preview_only: bool = call.data.get(ATTR_PREVIEW_ONLY, False)
     runtimes: dict[str, ChannelRuntime] = hass.data[DOMAIN][DATA_RUNTIMES]
 

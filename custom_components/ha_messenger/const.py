@@ -39,5 +39,7 @@ SIGNAL_MOTION_TRIGGER: Final = "ha_messenger_motion_trigger_{entry_id}"
 
 DATA_RUNTIMES: Final = "runtimes"
 DATA_CAMERA_TO_ENTRY: Final = "camera_to_entry"
+DATA_STATIC_PATH_REGISTERED: Final = "ha_messenger_static_path_registered"
+DATA_PANEL_REGISTERED: Final = "ha_messenger_panel_registered"
 
 FONT_FILENAME: Final = "default.ttf"

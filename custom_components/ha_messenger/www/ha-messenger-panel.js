@@ -224,6 +224,7 @@ class HaMessengerPanel extends LitElement {
       // Default-select all channels.
       this._selectedChannels = new Set(channels.map((c) => c.entity_id));
     } catch (err) {
+      this._channelsLoaded = false; // allow retry on next hass update
       this._error = "Failed to load channels: " + (err.message || String(err));
     }
   }
@@ -237,10 +238,10 @@ class HaMessengerPanel extends LitElement {
         name: k.replace("mobile_app_", "").replace(/_/g, " "),
       }));
 
-    // Only update if list changed (avoid unnecessary re-renders).
-    const prev = this._devices.map((d) => d.service).join(",");
-    const next = devices.map((d) => d.service).join(",");
-    if (prev !== next) {
+    // Only update if list changed (avoid unnecessary re-renders). Sort before comparing
+    // so API insertion-order changes don't trigger spurious updates.
+    const key = (arr) => arr.map((d) => d.service).sort().join(",");
+    if (key(this._devices) !== key(devices)) {
       // Remove any selected devices that no longer exist.
       const newServices = new Set(devices.map((d) => d.service));
       const pruned = new Set([...this._selectedDevices].filter((s) => newServices.has(s)));
@@ -251,6 +252,10 @@ class HaMessengerPanel extends LitElement {
 
   get _canAct() {
     return this._message.trim().length > 0 && this._selectedChannels.size > 0;
+  }
+
+  get _isBusy() {
+    return this._previewing || this._sending;
   }
 
   _onMessageInput(e) {
@@ -289,6 +294,7 @@ class HaMessengerPanel extends LitElement {
         path: "/api/camera_proxy/" + firstChannel,
         expires: 30,
       });
+      if (!path) throw new Error("auth/sign_path returned no path");
       this._previewUrl = path;
     } catch (err) {
       this._error = "Preview failed: " + (err.message || String(err));
@@ -380,14 +386,14 @@ class HaMessengerPanel extends LitElement {
       <div class="actions">
         <button
           class="btn-preview"
-          ?disabled=${!this._canAct || this._previewing || this._sending}
+          ?disabled=${!this._canAct || this._isBusy}
           @click=${this._preview}
         >
           ${this._previewing ? "Loading..." : "Preview"}
         </button>
         <button
           class="btn-send"
-          ?disabled=${!this._canAct || this._sending || this._previewing}
+          ?disabled=${!this._canAct || this._isBusy}
           @click=${this._send}
         >
           ${this._sending ? "Sending..." : "Send"}

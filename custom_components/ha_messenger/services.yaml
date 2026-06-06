@@ -33,6 +33,5 @@ send_message:
     preview_only:
       name: Preview only
       description: Update the camera image without triggering motion detection or push notifications.
-      required: false
       selector:
         boolean:
