@@ -12,6 +12,10 @@ from datetime import datetime
 from typing import Any
 
 import voluptuous as vol
+from pathlib import Path
+
+from homeassistant.components import frontend, panel_custom
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
@@ -25,7 +29,10 @@ from .const import (
     ATTR_DURATION,
     ATTR_MESSAGE,
     ATTR_NOTIFY_TARGETS,
+    ATTR_PREVIEW_ONLY,
     CONF_BG,
+    DATA_PANEL_REGISTERED,
+    DATA_STATIC_PATH_REGISTERED,
     CONF_DEFAULT_DURATION,
     CONF_FG,
     CONF_FONT_SIZE,
@@ -60,6 +67,7 @@ SEND_MESSAGE_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=MIN_DURATION, max=MAX_DURATION)
         ),
         vol.Optional(ATTR_NOTIFY_TARGETS): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
         vol.Optional("entity_id"): cv.entity_ids,
         vol.Optional("device_id"): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("area_id"): vol.All(cv.ensure_list, [cv.string]),
@@ -159,6 +167,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SEND_MESSAGE_SCHEMA,
         )
 
+    # Static path registration is permanent for the HA session (aiohttp routes can't be
+    # removed), so guard it at hass.data top level — not domain_data, which gets wiped
+    # on full unload and would cause a duplicate-route error on re-add.
+    if not hass.data.get(DATA_STATIC_PATH_REGISTERED):
+        www_dir = Path(__file__).parent / "www"
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig("/ha_messenger_panel", str(www_dir), False)]
+        )
+        hass.data[DATA_STATIC_PATH_REGISTERED] = True
+
+    # Panel registration is also stored at session level to eliminate the TOCTOU window
+    # when two entries set up concurrently — both would pass a domain_data check before
+    # either wrote the flag, causing async_register_panel to raise on the second call.
+    if not hass.data.get(DATA_PANEL_REGISTERED):
+        await panel_custom.async_register_panel(
+            hass,
+            frontend_url_path="ha-messenger",
+            webcomponent_name="ha-messenger-panel",
+            sidebar_title="HA Messenger",
+            sidebar_icon="mdi:message-image",
+            module_url="/ha_messenger_panel/ha-messenger-panel.js",
+            require_admin=False,
+        )
+        hass.data[DATA_PANEL_REGISTERED] = True
+
     return True
 
 
@@ -173,6 +206,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not domain_data[DATA_RUNTIMES]:
         hass.services.async_remove(DOMAIN, SERVICE_SEND_MESSAGE)
+        frontend.async_remove_panel(hass, "ha-messenger")
+        hass.data.pop(DATA_PANEL_REGISTERED, None)
+        # DATA_STATIC_PATH_REGISTERED intentionally survives — aiohttp routes cannot be
+        # unregistered at runtime, so the guard must persist across entry add/remove cycles.
         hass.data.pop(DOMAIN)
 
     return True
@@ -235,16 +272,21 @@ async def _async_send_message(
 ) -> None:
     """Fan a send_message call out to each resolved channel."""
     message = call.data[ATTR_MESSAGE]
-    notify_targets: list[str] = call.data.get(ATTR_NOTIFY_TARGETS) or []
+    notify_targets: list[str] = list(dict.fromkeys(call.data.get(ATTR_NOTIFY_TARGETS) or []))
+    preview_only: bool = call.data.get(ATTR_PREVIEW_ONLY, False)
     runtimes: dict[str, ChannelRuntime] = hass.data[DOMAIN][DATA_RUNTIMES]
 
     for entry_id in entry_ids:
         runtime = runtimes[entry_id]
         runtime.current_message = message
-        runtime.last_sent_at = dt_util.utcnow()
         runtime.invalidate_render_cache()
 
         async_dispatcher_send(hass, SIGNAL_MESSAGE_UPDATED.format(entry_id=entry_id))
+
+        if preview_only:
+            continue
+
+        runtime.last_sent_at = dt_util.utcnow()
 
         duration = call.data.get(ATTR_DURATION)
         if duration is None:
@@ -255,22 +297,23 @@ async def _async_send_message(
             duration,
         )
 
-        if not notify_targets:
-            continue
-
-        if runtime.camera_entity_id is None:
-            # Camera platform setup hasn't completed — motion already fired,
-            # but we can't attach an image yet. Surface it loudly.
+    # Notify targets are sent once regardless of how many channels were targeted —
+    # sending per-channel would duplicate notifications on every device.
+    # Use the first channel that has a registered camera entity_id as the image source.
+    if not preview_only and notify_targets:
+        notify_camera = next(
+            (runtimes[e].camera_entity_id for e in entry_ids if runtimes[e].camera_entity_id),
+            None,
+        )
+        if notify_camera is None:
             _LOGGER.warning(
-                "Skipping notify fanout for channel %s: camera entity not registered yet",
-                entry_id,
+                "Skipping notify fanout: no camera entity registered yet for any targeted channel"
             )
-            continue
-
-        for name in notify_targets:
-            await hass.services.async_call(
-                "notify",
-                name,
-                {"message": message, "data": {"image": runtime.camera_entity_id}},
-                blocking=True,
-            )
+        else:
+            for name in notify_targets:
+                await hass.services.async_call(
+                    "notify",
+                    name,
+                    {"message": message, "data": {"image": notify_camera}},
+                    blocking=True,
+                )

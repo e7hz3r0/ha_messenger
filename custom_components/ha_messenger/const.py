@@ -32,11 +32,14 @@ SERVICE_SEND_MESSAGE: Final = "send_message"
 ATTR_MESSAGE: Final = "message"
 ATTR_DURATION: Final = "duration"
 ATTR_NOTIFY_TARGETS: Final = "notify_targets"
+ATTR_PREVIEW_ONLY: Final = "preview_only"
 
 SIGNAL_MESSAGE_UPDATED: Final = "ha_messenger_message_updated_{entry_id}"
 SIGNAL_MOTION_TRIGGER: Final = "ha_messenger_motion_trigger_{entry_id}"
 
 DATA_RUNTIMES: Final = "runtimes"
 DATA_CAMERA_TO_ENTRY: Final = "camera_to_entry"
+DATA_STATIC_PATH_REGISTERED: Final = "ha_messenger_static_path_registered"
+DATA_PANEL_REGISTERED: Final = "ha_messenger_panel_registered"
 
 FONT_FILENAME: Final = "default.ttf"

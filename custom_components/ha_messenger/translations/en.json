@@ -62,6 +62,10 @@
         "notify_targets": {
           "name": "Notify targets",
           "description": "Optional list of notify service names (e.g. mobile_app_ethan) to push to, with the rendered image attached."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Update the camera image without triggering motion detection or push notifications."
         }
       }
     }
