@@ -200,12 +200,8 @@ class HaMessengerPanel extends LitElement {
     this._hass = hass;
     this.requestUpdate("hass", prev);
 
-    if (!this._channelsLoaded && hass) {
-      this._channelsLoaded = true;
-      this._loadChannels(hass);
-    }
-
     if (hass) {
+      this._updateChannels(hass);
       this._refreshDevices(hass);
     }
   }
@@ -214,18 +210,37 @@ class HaMessengerPanel extends LitElement {
     return this._hass;
   }
 
-  async _loadChannels(hass) {
-    try {
-      const entries = await hass.callWS({ type: "config/entity_registry/list" });
-      const channels = entries
-        .filter((e) => e.platform === "ha_messenger" && e.domain === "camera")
-        .map((e) => ({ entity_id: e.entity_id, name: e.name || e.original_name || e.entity_id }));
+  _updateChannels(hass) {
+    const channels = Object.keys(hass.states)
+      .filter((entityId) => {
+        if (!entityId.startsWith("camera.")) return false;
+        const stateObj = hass.states[entityId];
+        return stateObj && stateObj.attributes && stateObj.attributes.brand === "HA Messenger";
+      })
+      .map((entityId) => {
+        const stateObj = hass.states[entityId];
+        const friendlyName = stateObj.attributes.friendly_name || entityId;
+        return {
+          entity_id: entityId,
+          name: friendlyName,
+        };
+      });
+
+    const key = (arr) => arr.map((c) => c.entity_id).sort().join(",");
+    if (key(this._channels) !== key(channels)) {
+      const oldSelected = this._selectedChannels;
+      const newEntityIds = new Set(channels.map((c) => c.entity_id));
+
+      let nextSelected;
+      if (!this._channelsLoaded || oldSelected.size === 0) {
+        nextSelected = new Set(newEntityIds);
+      } else {
+        nextSelected = new Set([...oldSelected].filter((id) => newEntityIds.has(id)));
+      }
+
       this._channels = channels;
-      // Default-select all channels.
-      this._selectedChannels = new Set(channels.map((c) => c.entity_id));
-    } catch (err) {
-      this._channelsLoaded = false; // allow retry on next hass update
-      this._error = "Failed to load channels: " + (err.message || String(err));
+      this._selectedChannels = nextSelected;
+      this._channelsLoaded = true;
     }
   }
 
