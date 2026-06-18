@@ -24,7 +24,7 @@ Companion app  ──► service: ha_messenger.send_message(message, duration, n
            ┌────────────┴───────────────┐
            ▼                            ▼
    HomeKit bridge → Apple TV    notify.mobile_app_* push
-   motion notification          (with camera image attached)
+   motion notification          notification
 ```
 
 ## Install via HACS
@@ -76,7 +76,7 @@ data:
 - `message` — required text.
 - `duration` — seconds the motion sensor stays on (overrides default).
 - `notify_targets` — optional list of `notify.*` service names. Each receives a
-  push notification with the rendered camera image attached.
+  standard text push notification.
 
 ### Example Companion-app automation
 

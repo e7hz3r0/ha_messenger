@@ -61,7 +61,7 @@
         },
         "notify_targets": {
           "name": "Notify targets",
-          "description": "Optional list of notify service names (e.g. mobile_app_ethan) to push to, with the rendered image attached."
+          "description": "Optional list of notify service names (e.g. mobile_app_ethan) to send push notifications to."
         },
         "preview_only": {
           "name": "Preview only",

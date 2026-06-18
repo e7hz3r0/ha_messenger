@@ -143,7 +143,7 @@ async def test_send_message_with_unknown_target_raises(hass: HomeAssistant) -> N
 
 
 async def test_send_message_calls_notify_targets(hass: HomeAssistant) -> None:
-    """``notify_targets`` must trigger ``notify.<name>`` with the camera attached."""
+    """``notify_targets`` must trigger ``notify.<name>``."""
     await _setup(hass)
 
     # Register a fake notify service we can assert against.
@@ -168,10 +168,9 @@ async def test_send_message_calls_notify_targets(hass: HomeAssistant) -> None:
 
     assert len(calls) == 1
     assert calls[0]["message"] == "Dinner"
-    # The contract is: attach the camera as a proxy URL path under data.image
-    # so the Companion app can fetch and render it as an attachment. A bare
-    # entity_id would 404 and the attachment would silently drop.
-    assert calls[0].get("data", {}).get("image") == "/api/camera_proxy/camera.messenger"
+    # The contract is: do NOT attach the camera entity_id under data.image,
+    # so the Companion app renders it as a push notification, not a faux video.
+    assert "data" not in calls[0]
 
 
 async def test_send_message_custom_duration_overrides_default(hass: HomeAssistant) -> None:

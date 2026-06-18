@@ -26,7 +26,7 @@ send_message:
           mode: box
     notify_targets:
       name: Notify targets
-      description: List of notify.<name> services to push to with the rendered image attached.
+      description: List of notify.<name> services to send the push notification to.
       example: ["mobile_app_ethan_iphone"]
       selector:
         object: {}

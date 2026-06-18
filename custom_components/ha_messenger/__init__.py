@@ -299,26 +299,11 @@ async def _async_send_message(
 
     # Notify targets are sent once regardless of how many channels were targeted —
     # sending per-channel would duplicate notifications on every device.
-    # Use the first channel that has a registered camera entity_id as the image source.
     if not preview_only and notify_targets:
-        notify_camera = next(
-            (runtimes[e].camera_entity_id for e in entry_ids if runtimes[e].camera_entity_id),
-            None,
-        )
-        if notify_camera is None:
-            _LOGGER.warning(
-                "Skipping notify fanout: no camera entity registered yet for any targeted channel"
+        for name in notify_targets:
+            await hass.services.async_call(
+                "notify",
+                name,
+                {"message": message},
+                blocking=True,
             )
-        else:
-            # mobile_app notifications expect `image` to be a fetchable URL
-            # path, not an entity_id. The camera-proxy endpoint renders the
-            # current frame; passing the bare entity_id yields a 404 and the
-            # attachment silently drops.
-            image_path = f"/api/camera_proxy/{notify_camera}"
-            for name in notify_targets:
-                await hass.services.async_call(
-                    "notify",
-                    name,
-                    {"message": message, "data": {"image": image_path}},
-                    blocking=True,
-                )
