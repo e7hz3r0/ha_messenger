@@ -168,9 +168,10 @@ async def test_send_message_calls_notify_targets(hass: HomeAssistant) -> None:
 
     assert len(calls) == 1
     assert calls[0]["message"] == "Dinner"
-    # The contract is: attach the camera entity_id under data.image so the
-    # Companion app renders it as an attachment.
-    assert calls[0].get("data", {}).get("image") == "camera.messenger"
+    # The contract is: attach the camera as a proxy URL path under data.image
+    # so the Companion app can fetch and render it as an attachment. A bare
+    # entity_id would 404 and the attachment would silently drop.
+    assert calls[0].get("data", {}).get("image") == "/api/camera_proxy/camera.messenger"
 
 
 async def test_send_message_custom_duration_overrides_default(hass: HomeAssistant) -> None:
