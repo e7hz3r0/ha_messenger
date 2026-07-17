@@ -142,11 +142,11 @@ async def test_send_message_with_unknown_target_raises(hass: HomeAssistant) -> N
         )
 
 
-async def test_send_message_calls_notify_targets(hass: HomeAssistant) -> None:
-    """``notify_targets`` must trigger ``notify.<name>`` with the camera attached."""
+async def test_send_message_calls_notify_targets_legacy(hass: HomeAssistant) -> None:
+    """On HA cores without ``notify.send_message`` we fall back to ``notify.<name>``."""
     await _setup(hass)
 
-    # Register a fake notify service we can assert against.
+    # Register a fake legacy notify service we can assert against.
     calls: list[dict[str, object]] = []
 
     async def _capture(call):
@@ -168,10 +168,64 @@ async def test_send_message_calls_notify_targets(hass: HomeAssistant) -> None:
 
     assert len(calls) == 1
     assert calls[0]["message"] == "Dinner"
-    # The contract is: attach the camera as a proxy URL path under data.image
-    # so the Companion app can fetch and render it as an attachment. A bare
-    # entity_id would 404 and the attachment would silently drop.
-    assert calls[0].get("data", {}).get("image") == "/api/camera_proxy/camera.messenger"
+    # The contract is: do NOT attach the camera entity_id under data.image,
+    # so the Companion app renders it as a text push notification.
+    assert "data" not in calls[0]
+
+
+async def test_send_message_calls_notify_targets_modern(hass: HomeAssistant) -> None:
+    """On modern HA, ``notify_targets`` routes through ``notify.send_message``.
+
+    Users pass either the bare slug (``mobile_app_test``) or the full notify
+    entity id (``notify.mobile_app_test``); both must resolve to the same
+    ``notify.send_message`` target.
+    """
+    from homeassistant.components.notify import SERVICE_SEND_MESSAGE as NOTIFY_SEND_MESSAGE
+
+    await _setup(hass)
+
+    # Override the modern ``notify.send_message`` action with a spy. (We re-register
+    # rather than set up a real notify entity so the test doesn't depend on the
+    # mobile_app/entity-side machinery.) ``async_call`` merges ``target`` into
+    # ``service_data`` before dispatch, so the target entity_id arrives in call.data.
+    calls: list[dict[str, object]] = []
+
+    async def _capture(call):
+        calls.append(dict(call.data))
+
+    hass.services.async_register("notify", NOTIFY_SEND_MESSAGE, _capture)
+
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SEND_MESSAGE,
+        {
+            ATTR_MESSAGE: "Dinner",
+            ATTR_NOTIFY_TARGETS: ["mobile_app_test"],
+            "entity_id": "camera.messenger",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    assert len(calls) == 1
+    assert calls[0]["message"] == "Dinner"
+    assert calls[0]["entity_id"] == ["notify.mobile_app_test"]
+
+    # A full entity id target should pass through unchanged.
+    calls.clear()
+    await hass.services.async_call(
+        DOMAIN,
+        SERVICE_SEND_MESSAGE,
+        {
+            ATTR_MESSAGE: "Dinner",
+            ATTR_NOTIFY_TARGETS: ["notify.mobile_app_other"],
+            "entity_id": "camera.messenger",
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+    assert calls[0]["entity_id"] == ["notify.mobile_app_other"]
 
 
 async def test_send_message_custom_duration_overrides_default(hass: HomeAssistant) -> None:

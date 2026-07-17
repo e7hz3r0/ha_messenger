@@ -61,7 +61,7 @@
         },
         "notify_targets": {
           "name": "Notify targets",
-          "description": "Optional list of notify service names (e.g. mobile_app_ethan) to push to, with the rendered image attached."
+          "description": "Notify targets to push the message to (e.g. mobile_app_ethan_iphone or the full notify entity id). Routes through notify.send_message on modern HA, falls back to notify.<name> on older cores."
         },
         "preview_only": {
           "name": "Preview only",
