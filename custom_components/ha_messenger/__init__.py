@@ -310,10 +310,15 @@ async def _async_send_message(
                 "Skipping notify fanout: no camera entity registered yet for any targeted channel"
             )
         else:
+            # mobile_app notifications expect `image` to be a fetchable URL
+            # path, not an entity_id. The camera-proxy endpoint renders the
+            # current frame; passing the bare entity_id yields a 404 and the
+            # attachment silently drops.
+            image_path = f"/api/camera_proxy/{notify_camera}"
             for name in notify_targets:
                 await hass.services.async_call(
                     "notify",
                     name,
-                    {"message": message, "data": {"image": notify_camera}},
+                    {"message": message, "data": {"image": image_path}},
                     blocking=True,
                 )
