@@ -26,7 +26,10 @@ send_message:
           mode: box
     notify_targets:
       name: Notify targets
-      description: List of notify.<name> services to send the push notification to.
+      description: "List of notify targets to push the message to. On modern HA these
+        target the notify entities registered by mobile_app (e.g. `notify.mobile_app_ethan_iphone`);
+        the bare slug (`mobile_app_ethan_iphone`) is also accepted. Falls back to the
+        legacy `notify.<name>` services on older cores."
       example: ["mobile_app_ethan_iphone"]
       selector:
         object: {}

@@ -299,11 +299,30 @@ async def _async_send_message(
 
     # Notify targets are sent once regardless of how many channels were targeted —
     # sending per-channel would duplicate notifications on every device.
+    #
+    # Modern HA (2024.6+) removed the per-target ``notify.<name>`` services and
+    # routes everything through ``notify.send_message`` targeting a ``notify``
+    # entity (e.g. the ``notify.mobile_app_<device>`` entity that mobile_app
+    # registers per device). Calling the old ``notify.<name>`` service on a
+    # recent HA core silently fails to deliver anything, so we prefer the modern
+    # action and fall back to the legacy service only on older cores.
     if not preview_only and notify_targets:
+        modern = hass.services.has_service("notify", "send_message")
         for name in notify_targets:
-            await hass.services.async_call(
-                "notify",
-                name,
-                {"message": message},
-                blocking=True,
-            )
+            if modern:
+                entity_id = name if name.startswith("notify.") else f"notify.{name}"
+                await hass.services.async_call(
+                    "notify",
+                    "send_message",
+                    {"message": message},
+                    target={"entity_id": [entity_id]},
+                    blocking=True,
+                )
+            else:
+                service = name[len("notify.") :] if name.startswith("notify.") else name
+                await hass.services.async_call(
+                    "notify",
+                    service,
+                    {"message": message},
+                    blocking=True,
+                )

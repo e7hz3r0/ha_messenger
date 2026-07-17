@@ -75,8 +75,11 @@ data:
 
 - `message` — required text.
 - `duration` — seconds the motion sensor stays on (overrides default).
-- `notify_targets` — optional list of `notify.*` service names. Each receives a
-  standard text push notification.
+- `notify_targets` — optional list of notify targets. On modern HA these are the
+  `notify` entities registered by `mobile_app` (e.g. `notify.mobile_app_ethan_iphone`);
+  the bare slug (`mobile_app_ethan_iphone`) is also accepted. Each receives a
+  text push notification via the `notify.send_message` action (legacy
+  `notify.<name>` services are used as a fallback on older cores).
 
 ### Example Companion-app automation
 
