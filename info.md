@@ -6,5 +6,4 @@ is a rendered image of the message.
 
 - UI configuration (no YAML required for setup).
 - Works with the built-in HomeKit Bridge to surface alerts on Apple TV.
-- Optional passthrough to `notify.mobile_app_*` for push notifications with the
-  rendered frame attached.
+- Optional passthrough to `notify.mobile_app_*` for push notifications.

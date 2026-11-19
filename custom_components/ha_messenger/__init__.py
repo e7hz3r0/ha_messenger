@@ -299,26 +299,30 @@ async def _async_send_message(
 
     # Notify targets are sent once regardless of how many channels were targeted —
     # sending per-channel would duplicate notifications on every device.
-    # Use the first channel that has a registered camera entity_id as the image source.
+    #
+    # Modern HA (2024.6+) removed the per-target ``notify.<name>`` services and
+    # routes everything through ``notify.send_message`` targeting a ``notify``
+    # entity (e.g. the ``notify.mobile_app_<device>`` entity that mobile_app
+    # registers per device). Calling the old ``notify.<name>`` service on a
+    # recent HA core silently fails to deliver anything, so we prefer the modern
+    # action and fall back to the legacy service only on older cores.
     if not preview_only and notify_targets:
-        notify_camera = next(
-            (runtimes[e].camera_entity_id for e in entry_ids if runtimes[e].camera_entity_id),
-            None,
-        )
-        if notify_camera is None:
-            _LOGGER.warning(
-                "Skipping notify fanout: no camera entity registered yet for any targeted channel"
-            )
-        else:
-            # mobile_app notifications expect `image` to be a fetchable URL
-            # path, not an entity_id. The camera-proxy endpoint renders the
-            # current frame; passing the bare entity_id yields a 404 and the
-            # attachment silently drops.
-            image_path = f"/api/camera_proxy/{notify_camera}"
-            for name in notify_targets:
+        modern = hass.services.has_service("notify", "send_message")
+        for name in notify_targets:
+            if modern:
+                entity_id = name if name.startswith("notify.") else f"notify.{name}"
                 await hass.services.async_call(
                     "notify",
-                    name,
-                    {"message": message, "data": {"image": image_path}},
+                    "send_message",
+                    {"message": message},
+                    target={"entity_id": [entity_id]},
+                    blocking=True,
+                )
+            else:
+                service = name[len("notify.") :] if name.startswith("notify.") else name
+                await hass.services.async_call(
+                    "notify",
+                    service,
+                    {"message": message},
                     blocking=True,
                 )
